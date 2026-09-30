@@ -1,1 +1,4 @@
 # Integrantes: Vinícius Cargnin da Motta Rezende, Murilo Otávio de Oliveira Hinckel e Leonardo da Fontoura Winters
+
+# Arquitetura
+![Arquitetura](arquitetura.png)
