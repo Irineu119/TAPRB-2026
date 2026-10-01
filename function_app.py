@@ -1,56 +1,36 @@
 import azure.functions as func
 import logging
-import requests
 import os
+import pyodbc
 
 app = func.FunctionApp()
 
-@app.route(route="http_trigger_atividade_teste_1")
-def http_trigger_atividade_teste_1(req: func.HttpRequest) -> func.HttpResponse:
-    nome = req.params.get('nome')
-    if not nome:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            nome = req_body.get('nome')
-
-    if nome:
-        return func.HttpResponse(f"Oi, {nome}")
-    else:
-        return func.HttpResponse(
-             "Qual teu nome amigo",
-             status_code=200
-        )
-
-@app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False,
+@app.timer_trigger(schedule="0 */30 * * * *", arg_name="myTimer", run_on_startup=False,
               use_monitor=False)
-def timer_trigger_atividade_teste_1(myTimer: func.TimerRequest) -> None:
-    paranoid = os.environ.get("paranoid")
-    response = requests.get(paranoid, {"nome" : "Riverson"})
-    logging.info(response.text)
+def extract_chamado(myTimer: func.TimerRequest) -> None:
+    host = os.getenv("HOST")
+    banco = os.getenv("DATABASE")
+    usuario = os.getenv("USER")
+    senha = os.getenv("PASSWORD")
+    
+    conn_str = (
+        "DRIVER={ODBC Driver 18 for SQL Server};"
+        f"SERVER={host};"
+        f"DATABASE={banco};"
+        f"UID={usuario};"
+        f"PWD={senha};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "Connection Timeout=30;"
+    )
 
-@app.route(route="http_trigger_parametro", auth_level=func.AuthLevel.FUNCTION)
-def http_trigger_parametro(req: func.HttpRequest) -> func.HttpResponse:
-    parametro = req.params.get('parametro')
-    if not parametro:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            parametro = req_body.get('parametro')
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
 
-    if parametro:
-        return func.HttpResponse(parametro)
-    else:
-        return func.HttpResponse(
-             "Faltou o parametro",
-             status_code=200
-        )
-
-@app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False,
-              use_monitor=False) 
-def timer_trigger_log(myTimer: func.TimerRequest) -> None:
-    logging.info('Apenas um log')
+        # select na tabela itsm.chamado
+        cursor.execute("SELECT * FROM itsm.chamado")
+        for row in cursor.fetchall():
+            logging.info(row)
+    except Exception as e:
+        logging.info(e)
